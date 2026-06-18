@@ -37,6 +37,13 @@ module.exports = async (req, res) => {
     const upcoming = calls.filter(c => c.followup_date && c.followup_date >= today).sort((a,b) => a.followup_date.localeCompare(b.followup_date)).slice(0,10);
     const overdue = calls.filter(c => c.followup_date && c.followup_date < today).slice(0,5);
 
+    // Compact summaries — only the fields the model needs to match/update/recommend.
+    // Full records are still fetched fresh from the DB for list/pdf responses below.
+    const slim = c => ({ id: c.id, company: c.company, contact: c.contact, status: c.status, temp: c.temp, followupDate: c.followup_date });
+    const callsSummary = calls.slice(0, 50).map(slim);
+    const upcomingSummary = upcoming.map(slim);
+    const overdueSummary = overdue.map(slim);
+
     const systemPrompt = `You are an AI sales assistant for ${userName} using Zydi Flow.
 
 Today: ${today}. User: ${userName}.
@@ -45,10 +52,10 @@ CRITICAL - Always respond with ONLY a valid JSON object. No markdown, no backtic
 
 DUPLICATE PREVENTION: When user gives an UPDATE about existing company/contact, use "update" type with the existing record ID. Only use "log" for genuinely new calls.
 
-Pipeline data:
-All calls (${calls.length} total): ${JSON.stringify(calls.slice(0,50))}
-Upcoming follow-ups: ${JSON.stringify(upcoming)}
-Overdue follow-ups: ${JSON.stringify(overdue)}
+Pipeline data (summarised — company/contact/status/temp/followup only):
+All calls (${calls.length} total): ${JSON.stringify(callsSummary)}
+Upcoming follow-ups: ${JSON.stringify(upcomingSummary)}
+Overdue follow-ups: ${JSON.stringify(overdueSummary)}
 
 Response types:
 
@@ -75,8 +82,8 @@ Rules:
 - "call back/try again" = callback
 - Be warm, encouraging, address ${userName} by name occasionally`;
 
-    const messages = [...(history || []).slice(-12), { role: 'user', content: message }];
-    const response = await anthropic.messages.create({ model: 'claude-sonnet-4-5', max_tokens: 1000, system: systemPrompt, messages });
+    const messages = [...(history || []).slice(-6), { role: 'user', content: message }];
+    const response = await anthropic.messages.create({ model: 'claude-haiku-4-5-20251001', max_tokens: 1000, system: systemPrompt, messages });
     const raw = response.content.map(b => b.text || '').join('');
 
     // Parse JSON - strip any markdown if present
