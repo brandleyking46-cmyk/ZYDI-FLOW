@@ -1,0 +1,10 @@
+{
+  "name": "zydi-flow",
+  "version": "4.0.0",
+  "description": "Zydi Flow — AI Sales Intelligence",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.24.0",
+    "@supabase/supabase-js": "^2.43.0",
+    "web-push": "^3.6.7"
+  }
+}
