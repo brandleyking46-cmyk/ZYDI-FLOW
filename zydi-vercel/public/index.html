@@ -270,14 +270,14 @@ body{font-family:var(--font);color:var(--t);display:flex;flex-direction:column;}
       <button class="auth-tab on" onclick="aTab('login',this)">Sign In</button>
       <button class="auth-tab" onclick="aTab('signup',this)">Request Access</button>
     </div>
-    <div id="aform">
-      <div class="fl">Email</div><input class="fi" id="aemail" type="email" placeholder="you@company.com" autocomplete="email">
-      <div class="fl">Password</div><input class="fi" id="apass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doAuth()">
-      <div id="an-wrap" style="display:none;"><div class="fl">Full Name</div><input class="fi" id="aname" type="text" placeholder="Your name"></div>
-      <button class="auth-btn" id="abtn" onclick="doAuth()">Sign In</button>
+    <form id="aform" autocomplete="on" onsubmit="event.preventDefault();doAuth();">
+      <div class="fl">Email</div><input class="fi" id="aemail" name="email" type="email" placeholder="you@company.com" autocomplete="username">
+      <div class="fl">Password</div><input class="fi" id="apass" name="password" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter'){event.preventDefault();doAuth();}">
+      <div id="an-wrap" style="display:none;"><div class="fl">Full Name</div><input class="fi" id="aname" name="name" type="text" placeholder="Your name" autocomplete="name"></div>
+      <button class="auth-btn" id="abtn" type="submit">Sign In</button>
       <div class="auth-err" id="aerr"></div>
-      <button class="auth-lnk" id="afgt" onclick="showFgt()">Forgot password?</button>
-    </div>
+      <button class="auth-lnk" id="afgt" type="button" onclick="showFgt()">Forgot password?</button>
+    </form>
     <div id="fform" style="display:none;">
       <div style="font-size:13px;color:var(--t2);margin-bottom:14px;line-height:1.5;">Enter your email and we'll send a reset link.</div>
       <div class="fl">Email</div><input class="fi" id="femail" type="email" placeholder="you@company.com">
@@ -436,21 +436,61 @@ function obNext(){
 function doneOb(){go('ob','off');localStorage.setItem('zydi_ob','1');go('auth','');}
 function go(id,cls){const el=document.getElementById(id);el.classList.remove('off');if(cls==='off')el.classList.add('off');}
 
+// Shared session refresh helper.
+// Returns true if session is valid/refreshed, false if genuinely invalid (server said so).
+// Network errors / unexpected failures do NOT count as invalid - they just leave the old session in place.
+async function refreshSession(){
+  const saved=localStorage.getItem('zydi_sess');
+  if(!saved) return false;
+  let s;
+  try{ s=JSON.parse(saved); }catch(e){ return false; }
+  if(!s?.refresh_token) return false;
+
+  for(let attempt=0; attempt<2; attempt++){
+    try{
+      const r=await fetch(`${API}/auth`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'refresh',refresh_token:s.refresh_token})});
+      if(r.status===401){
+        // Server explicitly rejected the refresh token - it's genuinely invalid/expired.
+        return false;
+      }
+      const d=await r.json();
+      if(d.session){
+        session=d.session;
+        localStorage.setItem('zydi_sess',JSON.stringify(d.session));
+        return { session: d.session, user: d.user, profile: d.profile };
+      }
+      if(d.pending) return { pending: true };
+      // Unexpected shape - treat as transient, try again once
+    }catch(e){
+      // Network error - transient, try again once before giving up
+    }
+    if(attempt===0) await new Promise(res=>setTimeout(res,1200));
+  }
+  // Both attempts failed without an explicit "invalid" response - keep the old session rather than wiping it.
+  // The user stays logged in locally; the next natural retry (interval/focus) will try again.
+  return true;
+}
+
 async function init(){
   regSW();setupOffline();setupVoice();
   if(new URLSearchParams(location.search).get('logout')==='1'){localStorage.removeItem('zydi_sess');history.replaceState({},'','/');}
   const saved=localStorage.getItem('zydi_sess');
   if(saved){
-    try{
-      const s=JSON.parse(saved);
-      if(s?.refresh_token){
-        const r=await fetch(`${API}/auth`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'refresh',refresh_token:s.refresh_token})});
-        const d=await r.json();
-        if(d.session){session=d.session;localStorage.setItem('zydi_sess',JSON.stringify(d.session));await enterApp(d.user,d.profile);return;}
-        if(d.pending){go('ob','off');go('auth','off');go('pend','');return;}
-      }
-    }catch(e){}
-    localStorage.removeItem('zydi_sess');
+    const result=await refreshSession();
+    if(result===false){
+      localStorage.removeItem('zydi_sess');
+    }else if(result===true){
+      // Transient failure - couldn't confirm, but keep existing session and try to enter app with it.
+      try{
+        const s=JSON.parse(saved);
+        await enterApp(s.user, null);
+        return;
+      }catch(e){ localStorage.removeItem('zydi_sess'); }
+    }else if(result?.pending){
+      go('ob','off');go('auth','off');go('pend','');return;
+    }else if(result?.session){
+      await enterApp(result.user, result.profile);return;
+    }
   }
   if(!localStorage.getItem('zydi_ob')){go('auth','off');go('pend','off');}
   else{go('ob','off');go('auth','');}
@@ -536,15 +576,7 @@ async function enterApp(user,prof){
   await loadCalls();
   if(Notification.permission==='granted')document.getElementById('notif-st').textContent='Enabled ✓';
   // Auto-refresh session every 45 min
-  setInterval(async()=>{
-    try{
-      const s=JSON.parse(localStorage.getItem('zydi_sess')||'{}');
-      if(s?.refresh_token){
-        const r=await fetch(`${API}/auth`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'refresh',refresh_token:s.refresh_token})});
-        const d=await r.json();if(d.session){session=d.session;localStorage.setItem('zydi_sess',JSON.stringify(d.session));}
-      }
-    }catch(e){}
-  },45*60*1000);
+  setInterval(async()=>{ await refreshSession(); },45*60*1000);
   startPH();
 }
 async function doLogout(){
@@ -560,8 +592,14 @@ function tok(){return session?.access_token||null;}
 async function loadCalls(){
   try{
     // Always fetch fresh from server - never use stale local data
-    const r=await fetch(`${API}/calls`,{headers:{'Authorization':`Bearer ${tok()}`,'Cache-Control':'no-cache'}});
-    if(r.status===401){await doLogout();return;}
+    let r=await fetch(`${API}/calls`,{headers:{'Authorization':`Bearer ${tok()}`,'Cache-Control':'no-cache'}});
+    if(r.status===401){
+      // Access token may have simply expired while backgrounded - try a refresh before giving up.
+      const result=await refreshSession();
+      if(result===false){ await doLogout(); return; }
+      r=await fetch(`${API}/calls`,{headers:{'Authorization':`Bearer ${tok()}`,'Cache-Control':'no-cache'}});
+      if(r.status===401){ await doLogout(); return; }
+    }
     const d=await r.json();
     calls=d.calls||[];
     profile=d.profile;
@@ -841,13 +879,13 @@ document.getElementById('txa').addEventListener('focus',()=>{setTimeout(()=>{doc
 // Reload fresh data when app comes back into focus (switching between phone/laptop)
 document.addEventListener('visibilitychange',()=>{
   if(!document.hidden && tok()){
-    loadCalls();
+    refreshSession().then(()=>loadCalls());
   }
 });
 
 // Also reload when window gets focus
 window.addEventListener('focus',()=>{
-  if(tok()) loadCalls();
+  if(tok()) refreshSession().then(()=>loadCalls());
 });
 
 init();

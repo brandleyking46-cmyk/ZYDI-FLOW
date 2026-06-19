@@ -18,92 +18,125 @@
   --hot:#FF3B5C;--hot-dim:rgba(255,59,92,0.12);
   --warm:#FF9500;--warm-dim:rgba(255,149,0,0.12);
   --green:#34C759;--green-dim:rgba(52,199,89,0.12);
-  --cold:#636366;--cold-dim:rgba(99,99,102,0.15);
   --t:#FFF;--t2:rgba(255,255,255,0.65);--t3:rgba(255,255,255,0.3);
   --font:'Inter',sans-serif;--display:'Syne',sans-serif;--mono:'DM Mono',monospace;
   --st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);
 }
 html,body{height:100%;background:var(--bg);-webkit-font-smoothing:antialiased;}
-body{font-family:var(--font);color:var(--t);min-height:100%;padding-bottom:calc(40px + var(--sb));}
+body{font-family:var(--font);color:var(--t);min-height:100%;}
+
+.login-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 20px;}
+.login-logo{font-family:var(--display);font-weight:800;font-size:38px;letter-spacing:-0.01em;margin-bottom:6px;}
+.login-logo span{color:var(--acc);}
+.login-sub{font-family:var(--mono);font-size:12px;letter-spacing:0.18em;color:var(--t3);text-transform:uppercase;margin-bottom:34px;}
+.login-card{width:100%;max-width:380px;background:var(--s1);border:1px solid var(--bd);border-radius:20px;padding:28px 24px;}
+.fl{font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--t3);margin-bottom:8px;}
+.fi{width:100%;background:var(--bg);border:1.5px solid var(--bd);border-radius:12px;padding:14px 16px;font-size:16px;font-family:var(--font);color:var(--t);outline:none;-webkit-appearance:none;transition:border-color .2s;margin-bottom:16px;}
+.fi:focus{border-color:var(--acc);}
+.auth-btn{width:100%;padding:15px;border:none;border-radius:12px;background:linear-gradient(90deg,var(--acc2),var(--acc));color:#001018;font-size:15px;font-weight:700;font-family:var(--font);cursor:pointer;}
+.auth-btn:active{opacity:0.85;}
+.auth-btn:disabled{opacity:0.5;pointer-events:none;}
+.auth-err{font-size:13px;color:var(--hot);margin-top:14px;text-align:center;min-height:16px;}
+.back-lnk{margin-top:24px;font-size:13px;color:var(--t3);cursor:pointer;}
+.back-lnk:hover{color:var(--t2);}
 
 .topbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:calc(16px + var(--st)) 20px 16px;background:rgba(10,10,18,0.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--bd);}
-.topbar h1{font-family:var(--display);font-weight:800;font-size:20px;letter-spacing:-0.01em;}
+.topbar-left{display:flex;align-items:center;gap:10px;}
+.topbar h1{font-family:var(--display);font-weight:800;font-size:20px;}
 .topbar h1 span{color:var(--acc);}
-.back{display:flex;align-items:center;gap:6px;color:var(--t2);font-size:14px;font-weight:500;text-decoration:none;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:8px 12px;cursor:pointer;}
-.back:hover{border-color:var(--bd2);color:var(--t);}
+.adm-tag{font-size:11px;font-weight:700;padding:4px 10px;border-radius:7px;background:var(--hot-dim);color:var(--hot);font-family:var(--mono);}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.back{display:flex;align-items:center;gap:6px;color:var(--t2);font-size:14px;font-weight:500;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:8px 12px;cursor:pointer;}
+.signout{color:var(--hot);font-size:13px;font-weight:600;cursor:pointer;background:none;border:none;font-family:var(--font);}
 
-.wrap{max-width:760px;margin:0 auto;padding:20px;}
-
+.wrap{max-width:760px;margin:0 auto;padding:20px;padding-bottom:calc(40px + var(--sb));}
 .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;}
-.stat{background:var(--s1);border:1px solid var(--bd);border-radius:14px;padding:14px;}
+.stat{background:var(--s1);border:1px solid var(--bd);border-radius:14px;padding:14px;text-align:center;}
 .stat .n{font-family:var(--display);font-weight:800;font-size:26px;}
-.stat .l{font-size:12px;color:var(--t3);margin-top:2px;}
+.stat .n.warm{color:var(--warm);} .stat .n.green{color:var(--green);} .stat .n.acc{color:var(--acc);}
+.stat .l{font-size:11px;color:var(--t3);margin-top:2px;text-transform:uppercase;}
 
 .tabs{display:flex;background:var(--s1);border-radius:12px;padding:4px;margin-bottom:18px;border:1px solid var(--bd);}
-.tab{flex:1;text-align:center;padding:10px;border-radius:9px;font-size:13px;font-weight:600;color:var(--t2);cursor:pointer;}
+.tab{flex:1;text-align:center;padding:10px;border-radius:9px;font-size:12px;font-weight:700;color:var(--t2);cursor:pointer;text-transform:uppercase;font-family:var(--mono);}
 .tab.on{background:var(--s3);color:var(--t);}
 
-.card{background:var(--s1);border:1px solid var(--bd);border-radius:16px;padding:16px;margin-bottom:10px;}
-.card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
-.name{font-weight:600;font-size:15px;}
-.email{font-size:13px;color:var(--t2);margin-top:2px;word-break:break-all;}
-.meta{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;}
-.pill{font-size:11px;font-weight:600;padding:4px 9px;border-radius:7px;font-family:var(--mono);text-transform:uppercase;letter-spacing:0.02em;}
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:16px;padding:18px;margin-bottom:10px;}
+.card-top{display:flex;justify-content:space-between;gap:10px;}
+.name{font-weight:700;font-size:16px;}
+.email{font-size:13px;color:var(--t2);margin-top:3px;word-break:break-all;}
+.meta{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;}
+.pill{font-size:11px;font-weight:700;padding:4px 10px;border-radius:7px;font-family:var(--mono);}
 .pill.pending{background:var(--warm-dim);color:var(--warm);}
 .pill.approved{background:var(--green-dim);color:var(--green);}
 .pill.rejected{background:var(--hot-dim);color:var(--hot);}
 .pill.admin{background:var(--acc-dim);color:var(--acc);}
 .calls-n{font-size:12px;color:var(--t3);font-family:var(--mono);}
-
-.actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
-.btn{flex:1;min-width:90px;padding:10px;border-radius:10px;border:1px solid var(--bd);background:var(--s2);color:var(--t);font-size:13px;font-weight:600;cursor:pointer;text-align:center;}
+.actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
+.btn{flex:1;min-width:100px;padding:12px;border-radius:12px;border:none;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);}
 .btn:active{transform:scale(0.97);}
-.btn.approve{background:var(--green-dim);color:var(--green);border-color:transparent;}
-.btn.reject{background:var(--hot-dim);color:var(--hot);border-color:transparent;}
-.btn.revoke{background:var(--warm-dim);color:var(--warm);border-color:transparent;}
-.btn.make-admin{background:var(--acc-dim);color:var(--acc);border-color:transparent;}
+.btn.approve{background:var(--green-dim);color:var(--green);}
+.btn.reject{background:var(--hot-dim);color:var(--hot);}
+.btn.revoke{background:var(--warm-dim);color:var(--warm);}
+.btn.make-admin{background:var(--acc-dim);color:var(--acc);}
 .btn:disabled{opacity:0.4;pointer-events:none;}
-
 .empty{text-align:center;padding:60px 20px;color:var(--t3);}
 .empty .e-ic{font-size:32px;margin-bottom:10px;}
-.loading{text-align:center;padding:60px 20px;color:var(--t2);font-size:14px;}
 
-.toast{position:fixed;bottom:calc(20px + var(--sb));left:50%;transform:translateX(-50%) translateY(20px);background:var(--s3);border:1px solid var(--bd2);border-radius:12px;padding:12px 18px;font-size:13px;font-weight:500;opacity:0;pointer-events:none;transition:all .25s;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.4);}
+.toast{position:fixed;bottom:calc(20px + var(--sb));left:50%;transform:translateX(-50%) translateY(20px);background:var(--s3);border:1px solid var(--bd2);border-radius:12px;padding:12px 18px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:all .25s;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.4);}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.err{background:var(--hot-dim);color:var(--hot);}
 
 .center-screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:30px;}
 .center-screen .e-ic{font-size:38px;}
 .center-screen p{color:var(--t2);font-size:14px;max-width:280px;}
-.center-screen .btn{display:inline-block;padding:12px 22px;background:var(--acc);color:#001018;border:none;border-radius:12px;font-weight:700;cursor:pointer;flex:none;}
+.cbtn{display:inline-block;padding:13px 24px;background:var(--acc);color:#001018;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:var(--font);}
+
+[data-screen]{display:none;}
 </style>
 </head>
 <body>
 
-<div id="gate" class="center-screen" style="display:none;">
-  <div class="e-ic">🔒</div>
-  <p id="gate-msg">Checking access…</p>
+<div data-screen="login" class="login-wrap">
+  <div class="login-logo">Zydi<span>.</span></div>
+  <div class="login-sub">Admin Dashboard</div>
+  <div class="login-card">
+    <form id="loginForm" autocomplete="on" onsubmit="event.preventDefault();doAdminLogin();">
+      <div class="fl">Email</div>
+      <input class="fi" id="aemail" name="email" type="email" placeholder="admin@company.com" autocomplete="username">
+      <div class="fl">Password</div>
+      <input class="fi" id="apass" name="password" type="password" placeholder="••••••••" autocomplete="current-password">
+      <button class="auth-btn" id="abtn" type="submit">Sign In as Admin</button>
+      <div class="auth-err" id="aerr"></div>
+    </form>
+  </div>
+  <div class="back-lnk" onclick="location.href='/'">← Back to app</div>
+</div>
+
+<div data-screen="gate" class="center-screen">
+  <div class="e-ic" id="gate-ic">🔒</div>
+  <p id="gate-msg"></p>
   <div id="gate-action"></div>
 </div>
 
-<div id="app" style="display:none;">
+<div data-screen="app">
   <div class="topbar">
-    <h1>Zydi <span>Admin</span></h1>
-    <div class="back" onclick="location.href='/'">← Back to app</div>
+    <div class="topbar-left"><h1>Zydi<span>.</span></h1><span class="adm-tag">Admin</span></div>
+    <div class="topbar-right">
+      <div class="back" onclick="location.href='/'">← App</div>
+      <button class="signout" onclick="doAdminLogout()">Sign Out</button>
+    </div>
   </div>
-
   <div class="wrap">
     <div class="stats-row">
-      <div class="stat"><div class="n" id="st-total">–</div><div class="l">Total users</div></div>
-      <div class="stat"><div class="n" id="st-pending">–</div><div class="l">Pending</div></div>
-      <div class="stat"><div class="n" id="st-approved">–</div><div class="l">Approved</div></div>
+      <div class="stat"><div class="n warm" id="st-pending">–</div><div class="l">Pending</div></div>
+      <div class="stat"><div class="n green" id="st-approved">–</div><div class="l">Approved</div></div>
+      <div class="stat"><div class="n acc" id="st-total">–</div><div class="l">Total</div></div>
     </div>
-
     <div class="tabs">
       <div class="tab on" data-f="pending" onclick="setFilter('pending')">Pending</div>
       <div class="tab" data-f="approved" onclick="setFilter('approved')">Approved</div>
-      <div class="tab" data-f="all" onclick="setFilter('all')">All</div>
+      <div class="tab" data-f="rejected" onclick="setFilter('rejected')">Rejected</div>
     </div>
-
     <div id="list"></div>
   </div>
 </div>
@@ -114,60 +147,83 @@ body{font-family:var(--font);color:var(--t);min-height:100%;padding-bottom:calc(
 const API='/api';
 let profiles=[];
 let filter='pending';
+let adminSession=null;
 
-function tok(){
-  try{ return (JSON.parse(localStorage.getItem('zydi_sess')||'{}').access_token)||''; }
-  catch{ return ''; }
-}
+function show(s){ document.querySelectorAll('[data-screen]').forEach(el=>{ el.style.display = el.dataset.screen===s ? (s==='app'?'block':'flex') : 'none'; }); }
+function tok(){ return adminSession?.access_token || null; }
+function saveSession(s){ adminSession=s; try{ localStorage.setItem('zydi_admin_sess', JSON.stringify(s)); }catch(e){} }
+function loadSavedSession(){ try{ return JSON.parse(localStorage.getItem('zydi_admin_sess')||'null'); }catch(e){ return null; } }
+function clearSession(){ adminSession=null; localStorage.removeItem('zydi_admin_sess'); }
 
-function showToast(msg){
-  const t=document.getElementById('toast');
-  t.textContent=msg; t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),2200);
-}
-
-function gate(msg, actionHtml){
-  document.getElementById('app').style.display='none';
-  document.getElementById('gate').style.display='flex';
+function gate(icon,msg,actionHtml){
+  document.getElementById('gate-ic').textContent=icon;
   document.getElementById('gate-msg').textContent=msg;
   document.getElementById('gate-action').innerHTML=actionHtml||'';
+  show('gate');
+}
+function showToast(msg,isErr){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast show'+(isErr?' err':'');
+  setTimeout(()=>t.classList.remove('show'),2400);
 }
 
-async function load(){
-  const t=tok();
-  if(!t){
-    gate('You need to sign in first.', '<button class="btn" onclick="location.href=\'/\'">Go to sign in</button>');
-    return;
-  }
+async function doAdminLogin(){
+  const email=document.getElementById('aemail').value.trim();
+  const pass=document.getElementById('apass').value;
+  const btn=document.getElementById('abtn'), err=document.getElementById('aerr');
+  err.textContent='';
+  if(!email||!pass){ err.textContent='Please fill in all fields.'; return; }
+  btn.disabled=true; btn.textContent='Signing in…';
   try{
-    const r=await fetch(`${API}/admin`,{headers:{'Authorization':`Bearer ${t}`}});
-    if(r.status===401){
-      gate('Your session expired. Please sign in again.', '<button class="btn" onclick="location.href=\'/\'">Go to sign in</button>');
-      return;
-    }
-    if(r.status===403){
-      gate('This account doesn\'t have admin access.', '<button class="btn" onclick="location.href=\'/\'">Back to app</button>');
-      return;
-    }
-    if(!r.ok){
-      gate('Couldn\'t load admin data. Please try again.', '<button class="btn" onclick="load()">Retry</button>');
-      return;
-    }
+    const r=await fetch(`${API}/auth`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'login',email,password:pass})});
+    const d=await r.json();
+    if(d.error){ err.textContent=d.error; btn.disabled=false; btn.textContent='Sign In as Admin'; return; }
+    if(d.pending){ err.textContent='Your account is still pending approval.'; btn.disabled=false; btn.textContent='Sign In as Admin'; return; }
+    if(!d.profile?.is_admin){ err.textContent='This account does not have admin access.'; btn.disabled=false; btn.textContent='Sign In as Admin'; return; }
+    saveSession(d.session);
+    await loadDashboard();
+  }catch(e){
+    err.textContent='Connection error. Please try again.';
+    btn.disabled=false; btn.textContent='Sign In as Admin';
+  }
+}
+
+function doAdminLogout(){
+  clearSession();
+  document.getElementById('aemail').value='';
+  document.getElementById('apass').value='';
+  document.getElementById('aerr').textContent='';
+  document.getElementById('abtn').disabled=false;
+  document.getElementById('abtn').textContent='Sign In as Admin';
+  show('login');
+}
+
+async function init(){
+  const saved=loadSavedSession();
+  if(saved?.access_token){ adminSession=saved; await loadDashboard(); }
+  else{ show('login'); }
+}
+
+async function loadDashboard(){
+  try{
+    const r=await fetch(`${API}/admin`,{headers:{'Authorization':`Bearer ${tok()}`}});
+    if(r.status===401){ clearSession(); gate('🔒','Your session expired. Please sign in again.', '<button class="cbtn" onclick="doAdminLogout()">Sign in again</button>'); return; }
+    if(r.status===403){ clearSession(); gate('⛔',"This account doesn't have admin access.", '<button class="cbtn" onclick="location.href=\'/\'">Back to app</button>'); return; }
+    if(!r.ok){ gate('⚠️',"Couldn't load admin data. Please try again.", '<button class="cbtn" onclick="loadDashboard()">Retry</button>'); return; }
     const d=await r.json();
     profiles=d.profiles||[];
-    document.getElementById('gate').style.display='none';
-    document.getElementById('app').style.display='block';
+    show('app');
     renderStats();
     render();
   }catch(e){
-    gate('Network error. Check your connection and try again.', '<button class="btn" onclick="load()">Retry</button>');
+    gate('⚠️','Network error. Check your connection and try again.', '<button class="cbtn" onclick="loadDashboard()">Retry</button>');
   }
 }
 
 function renderStats(){
-  document.getElementById('st-total').textContent=profiles.length;
   document.getElementById('st-pending').textContent=profiles.filter(p=>p.status==='pending').length;
   document.getElementById('st-approved').textContent=profiles.filter(p=>p.status==='approved').length;
+  document.getElementById('st-total').textContent=profiles.length;
 }
 
 function setFilter(f){
@@ -178,45 +234,24 @@ function setFilter(f){
 
 function render(){
   const list=document.getElementById('list');
-  let rows=profiles;
-  if(filter==='pending') rows=rows.filter(p=>p.status==='pending');
-  else if(filter==='approved') rows=rows.filter(p=>p.status==='approved');
-
-  if(!rows.length){
-    list.innerHTML=`<div class="empty"><div class="e-ic">📭</div>No ${filter==='all'?'':filter} users to show.</div>`;
-    return;
-  }
-
+  const rows=profiles.filter(p=>p.status===filter);
+  if(!rows.length){ list.innerHTML=`<div class="empty"><div class="e-ic">📭</div>No ${filter} users.</div>`; return; }
   list.innerHTML=rows.map(p=>{
     const statusPill=`<span class="pill ${p.status}">${p.status}</span>`;
     const adminPill=p.is_admin?'<span class="pill admin">admin</span>':'';
     const name=p.full_name||p.email?.split('@')[0]||'Unknown';
-    const date=p.created_at?new Date(p.created_at).toLocaleDateString():'';
+    const date=p.created_at?new Date(p.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'';
     let actions='';
     if(p.status==='pending'){
-      actions=`<div class="actions">
-        <div class="btn approve" onclick="act('${p.id}','approve')">Approve</div>
-        <div class="btn reject" onclick="act('${p.id}','reject')">Reject</div>
-      </div>`;
+      actions=`<div class="actions"><div class="btn approve" onclick="act('${p.id}','approve')">✔ Approve</div><div class="btn reject" onclick="act('${p.id}','reject')">✗ Reject</div></div>`;
     }else if(p.status==='approved'){
-      actions=`<div class="actions">
-        <div class="btn revoke" onclick="act('${p.id}','revoke')">Revoke</div>
-        ${!p.is_admin?`<div class="btn make-admin" onclick="act('${p.id}','make_admin')">Make admin</div>`:''}
-      </div>`;
+      actions=`<div class="actions"><div class="btn revoke" onclick="act('${p.id}','revoke')">Revoke</div>${!p.is_admin?`<div class="btn make-admin" onclick="act('${p.id}','make_admin')">Make admin</div>`:''}</div>`;
     }else if(p.status==='rejected'){
-      actions=`<div class="actions">
-        <div class="btn approve" onclick="act('${p.id}','approve')">Approve anyway</div>
-      </div>`;
+      actions=`<div class="actions"><div class="btn approve" onclick="act('${p.id}','approve')">✔ Approve anyway</div></div>`;
     }
     return `<div class="card" id="card-${p.id}">
-      <div class="card-top">
-        <div>
-          <div class="name">${name}</div>
-          <div class="email">${p.email||''}</div>
-        </div>
-        <div class="calls-n">${p.call_count||0} calls</div>
-      </div>
-      <div class="meta">${statusPill}${adminPill}<span class="calls-n">joined ${date}</span></div>
+      <div class="card-top"><div><div class="name">${name}</div><div class="email">${p.email||''}</div></div><div class="calls-n">${p.call_count||0} calls</div></div>
+      <div class="meta">${statusPill}${adminPill}<span class="calls-n">Joined ${date}</span></div>
       ${actions}
     </div>`;
   }).join('');
@@ -226,33 +261,19 @@ async function act(userId, action){
   const card=document.getElementById('card-'+userId);
   if(card) card.querySelectorAll('.btn').forEach(b=>b.setAttribute('disabled','1'));
   try{
-    const r=await fetch(`${API}/admin`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':`Bearer ${tok()}`},
-      body:JSON.stringify({action, userId})
-    });
-    if(r.status===401){ gate('Your session expired. Please sign in again.', '<button class="btn" onclick="location.href=\'/\'">Go to sign in</button>'); return; }
-    if(!r.ok){ showToast('Action failed — please try again'); if(card) card.querySelectorAll('.btn').forEach(b=>b.removeAttribute('disabled')); return; }
-
-    const labels={approve:'Approved',reject:'Rejected',revoke:'Access revoked',make_admin:'Promoted to admin'};
+    const r=await fetch(`${API}/admin`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${tok()}`},body:JSON.stringify({action,userId})});
+    if(r.status===401){ clearSession(); gate('🔒','Your session expired. Please sign in again.', '<button class="cbtn" onclick="doAdminLogout()">Sign in again</button>'); return; }
+    if(!r.ok){ showToast('Action failed — please try again', true); if(card) card.querySelectorAll('.btn').forEach(b=>b.removeAttribute('disabled')); return; }
+    const labels={approve:'Approved ✓',reject:'Rejected',revoke:'Access revoked',make_admin:'Promoted to admin'};
     showToast(labels[action]||'Done');
-
-    const p=profiles.find(x=>x.id===userId);
-    if(p){
-      if(action==='approve') p.status='approved';
-      else if(action==='reject') p.status='rejected';
-      else if(action==='revoke') p.status='pending';
-      else if(action==='make_admin') p.is_admin=true;
-    }
-    renderStats();
-    render();
+    await loadDashboard();
   }catch(e){
-    showToast('Network error — please try again');
+    showToast('Network error — please try again', true);
     if(card) card.querySelectorAll('.btn').forEach(b=>b.removeAttribute('disabled'));
   }
 }
 
-load();
+init();
 </script>
 </body>
 </html>
