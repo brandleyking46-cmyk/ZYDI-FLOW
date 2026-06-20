@@ -940,34 +940,41 @@ function hideTyping(){const t=document.getElementById('typing');if(t)t.remove();
 function onInp(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,130)+'px';document.getElementById('snd').disabled=!el.value.trim();}
 function hKey(e){const mob=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);if(!mob&&e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}}
 
+let _sendInFlight=false;
 async function send(){
+  if(_sendInFlight) return;
   const inp=document.getElementById('txa');const text=inp.value.trim();if(!text||!tok())return;
-  inp.value='';inp.style.height='auto';document.getElementById('snd').disabled=true;
-
-  // Name capture on first login
-  const uid=session?.user?.id;
-  if(uid&&localStorage.getItem('zydi_awaiting_name_'+uid)){
-    localStorage.removeItem('zydi_awaiting_name_'+uid);
-    localStorage.setItem('zydi_named_'+uid,'1');
-    const firstName=text.trim().split(' ')[0];
-    addMsg('user',esc(text));
-    try{await fetch(`${API}/save-name`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${tok()}`},body:JSON.stringify({name:text.trim()})});if(profile)profile.full_name=text.trim();document.getElementById('uav').textContent=firstName.charAt(0).toUpperCase();}catch(e){}
-    const hr=new Date().getHours();const greet=hr<12?'Good morning':hr<17?'Good afternoon':'Good evening';
-    addMsg('ai',`${greet}, <strong>${esc(firstName)}</strong>! Great to meet you. Let\'s build your pipeline.<br><br>After every call, just tell me what happened — I\'ll log the lead, score it, set your follow-up, and tell you exactly what to do next.<br><br><span style="color:var(--t3);font-size:13px;">Try: <em style="color:var(--acc);">"Spoke to Sarah at Marriott, she loved the pitch, sending proposal Monday"</em></span>`);
-    document.getElementById('snd').disabled=false;return;
-  }
-
-  addMsg('user',esc(text).replace(/\n/g,'<br>'));hist.push({role:'user',content:text});
-  if(!navigator.onLine){addMsg('ai',"You're offline. I'll process this when reconnected. 📶");document.getElementById('snd').disabled=false;return;}
-  showTyping();
+  _sendInFlight=true;
   try{
-    const r=await fetch(`${API}/chat`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${tok()}`},body:JSON.stringify({message:text,history:hist.slice(-12)})});
-    if(r.status===401){hideTyping();await doLogout();return;}
-    const d=await r.json();hideTyping();
-    if(d.error){addMsg('ai','Something went wrong. Please try again.');}
-    else{hist.push({role:'assistant',content:d.raw});handleResp(d.parsed);}
-  }catch(e){hideTyping();addMsg('ai','Connection error. Check your internet and try again.');}
-  document.getElementById('snd').disabled=false;
+    inp.value='';inp.style.height='auto';document.getElementById('snd').disabled=true;
+
+    // Name capture on first login
+    const uid=session?.user?.id;
+    if(uid&&localStorage.getItem('zydi_awaiting_name_'+uid)){
+      localStorage.removeItem('zydi_awaiting_name_'+uid);
+      localStorage.setItem('zydi_named_'+uid,'1');
+      const firstName=text.trim().split(' ')[0];
+      addMsg('user',esc(text));
+      try{await fetch(`${API}/save-name`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${tok()}`},body:JSON.stringify({name:text.trim()})});if(profile)profile.full_name=text.trim();document.getElementById('uav').textContent=firstName.charAt(0).toUpperCase();}catch(e){}
+      const hr=new Date().getHours();const greet=hr<12?'Good morning':hr<17?'Good afternoon':'Good evening';
+      addMsg('ai',`${greet}, <strong>${esc(firstName)}</strong>! Great to meet you. Let\'s build your pipeline.<br><br>After every call, just tell me what happened — I\'ll log the lead, score it, set your follow-up, and tell you exactly what to do next.<br><br><span style="color:var(--t3);font-size:13px;">Try: <em style="color:var(--acc);">"Spoke to Sarah at Marriott, she loved the pitch, sending proposal Monday"</em></span>`);
+      return;
+    }
+
+    addMsg('user',esc(text).replace(/\n/g,'<br>'));hist.push({role:'user',content:text});
+    if(!navigator.onLine){addMsg('ai',"You're offline. I'll process this when reconnected. 📶");return;}
+    showTyping();
+    try{
+      const r=await fetch(`${API}/chat`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${tok()}`},body:JSON.stringify({message:text,history:hist.slice(-12)})});
+      if(r.status===401){hideTyping();await doLogout();return;}
+      const d=await r.json();hideTyping();
+      if(d.error){addMsg('ai','Something went wrong. Please try again.');}
+      else{hist.push({role:'assistant',content:d.raw});handleResp(d.parsed);}
+    }catch(e){hideTyping();addMsg('ai','Connection error. Check your internet and try again.');}
+  }finally{
+    document.getElementById('snd').disabled=false;
+    _sendInFlight=false;
+  }
 }
 
 function handleResp(p){
