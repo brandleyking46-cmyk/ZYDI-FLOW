@@ -244,6 +244,39 @@ body{font-family:var(--font);color:var(--t);display:flex;flex-direction:column;}
   .pr-reco{font-size:10px;color:#1a7a50;line-height:1.5;margin-top:4px;padding-left:7px;border-left:2px solid #1a7a50;}
   .pr-foot{position:fixed;bottom:0;left:0;right:0;padding:7px 0;border-top:1px solid #e0e0e0;display:flex;justify-content:space-between;font-size:8px;color:#aaa;}
 }
+
+/* Reminder nudge - premium floating card */
+.reminder-nudge{
+  position:fixed;left:16px;right:16px;bottom:calc(86px + var(--sb));z-index:60;
+  max-width:420px;margin:0 auto;
+  background:linear-gradient(165deg,var(--s2),var(--s1));
+  border:1px solid var(--bd2);
+  border-radius:18px;
+  padding:16px 16px 16px 18px;
+  box-shadow:0 16px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,212,255,0.04);
+  display:flex;align-items:flex-start;gap:12px;
+  transform:translateY(140%);opacity:0;
+  transition:transform .55s cubic-bezier(.16,1,.3,1), opacity .4s ease;
+  pointer-events:none;
+}
+.reminder-nudge.show{transform:translateY(0);opacity:1;pointer-events:auto;}
+.reminder-nudge.leaving{transform:translateY(140%);opacity:0;transition:transform .35s cubic-bezier(.4,0,1,1), opacity .3s ease;}
+.rn-icon{
+  width:36px;height:36px;border-radius:11px;flex-shrink:0;
+  background:radial-gradient(circle at 30% 30%, rgba(0,212,255,0.22), rgba(0,212,255,0.06));
+  border:1px solid rgba(0,212,255,0.25);
+  display:flex;align-items:center;justify-content:center;font-size:16px;
+}
+.rn-body{flex:1;min-width:0;}
+.rn-title{font-size:13.5px;font-weight:700;color:var(--t);letter-spacing:-0.01em;}
+.rn-sub{font-size:12.5px;color:var(--t2);margin-top:3px;line-height:1.45;}
+.rn-actions{display:flex;gap:8px;margin-top:11px;}
+.rn-btn{font-size:12px;font-weight:700;padding:7px 13px;border-radius:9px;cursor:pointer;border:none;font-family:var(--font);}
+.rn-btn.primary{background:linear-gradient(90deg,var(--acc2),var(--acc));color:#001018;}
+.rn-btn.ghost{background:transparent;color:var(--t3);}
+.rn-close{flex-shrink:0;width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--t3);cursor:pointer;font-size:13px;background:rgba(255,255,255,0.04);}
+.rn-close:hover{color:var(--t2);background:rgba(255,255,255,0.08);}
+@media(min-width:520px){.reminder-nudge{left:auto;right:24px;width:380px;bottom:calc(96px + var(--sb));}}
 </style>
 </head>
 <body>
@@ -408,6 +441,7 @@ body{font-family:var(--font);color:var(--t);display:flex;flex-direction:column;}
 </div>
 <div class="toast" id="toast"></div>
 <div id="pra" style="display:none;"></div>
+<div class="reminder-nudge" id="reminderNudge"></div>
 
 <script>
 const API = '/api';
@@ -439,7 +473,17 @@ function go(id,cls){const el=document.getElementById(id);el.classList.remove('of
 // Shared session refresh helper.
 // Returns true if session is valid/refreshed, false if genuinely invalid (server said so).
 // Network errors / unexpected failures do NOT count as invalid - they just leave the old session in place.
+// IMPORTANT: guarded against concurrent calls - visibilitychange and focus can both fire
+// almost simultaneously when reopening the app, and firing two refresh calls with the same
+// refresh_token at once can trip Supabase's replay-attack detection and revoke the session.
+let _refreshInFlight=null;
 async function refreshSession(){
+  if(_refreshInFlight) return _refreshInFlight;
+  _refreshInFlight=_doRefreshSession();
+  try{ return await _refreshInFlight; }
+  finally{ _refreshInFlight=null; }
+}
+async function _doRefreshSession(){
   const saved=localStorage.getItem('zydi_sess');
   if(!saved) return false;
   let s;
@@ -483,13 +527,13 @@ async function init(){
       // Transient failure - couldn't confirm, but keep existing session and try to enter app with it.
       try{
         const s=JSON.parse(saved);
-        await enterApp(s.user, null);
+        await enterApp(s.user, null, true);
         return;
       }catch(e){ localStorage.removeItem('zydi_sess'); }
     }else if(result?.pending){
       go('ob','off');go('auth','off');go('pend','');return;
     }else if(result?.session){
-      await enterApp(result.user, result.profile);return;
+      await enterApp(result.user, result.profile, true);return;
     }
   }
   if(!localStorage.getItem('zydi_ob')){go('auth','off');go('pend','off');}
@@ -502,16 +546,107 @@ function setupOffline(){
   window.addEventListener('online',()=>b.classList.remove('on'));
   window.addEventListener('offline',()=>b.classList.add('on'));
 }
+let _reminderShownThisSession=false;
+function checkReminderNudge(){
+  if(_reminderShownThisSession) return;
+  const todayDate=new Date();
+  const today=todayDate.toISOString().split('T')[0];
+  const tomorrowDate=new Date(todayDate);
+  tomorrowDate.setDate(tomorrowDate.getDate()+1);
+  const tomorrow=tomorrowDate.toISOString().split('T')[0];
+
+  const overdue=calls.filter(c=>c.followup_date&&c.followup_date<today);
+  const dueToday=calls.filter(c=>c.followup_date&&c.followup_date===today);
+  const dueTomorrow=calls.filter(c=>c.followup_date&&c.followup_date===tomorrow);
+  if(!overdue.length && !dueToday.length && !dueTomorrow.length) return;
+
+  _reminderShownThisSession=true;
+  const el=document.getElementById('reminderNudge');
+
+  let title,sub,filterTarget;
+  if(overdue.length){
+    title=overdue.length===1?'1 follow-up is overdue':`${overdue.length} follow-ups are overdue`;
+    const lead=overdue[0];
+    sub=overdue.length===1
+      ? `${lead.company||'A contact'}${lead.contact?' — '+lead.contact:''} has been waiting since ${lead.followup_date}.`
+      : `Including ${lead.company||'a contact'} and ${overdue.length-1} other${overdue.length-1===1?'':'s'}.`;
+    filterTarget='followup';
+  } else if(dueToday.length){
+    title=dueToday.length===1?'1 follow-up is due today':`${dueToday.length} follow-ups are due today`;
+    sub=dueToday.length===1
+      ? `${dueToday[0].company||'A contact'} is on your list for today.`
+      : `Worth a quick look before you log off.`;
+    filterTarget='followup';
+  } else {
+    title=dueTomorrow.length===1?'1 follow-up is due tomorrow':`${dueTomorrow.length} follow-ups are due tomorrow`;
+    sub=dueTomorrow.length===1
+      ? `${dueTomorrow[0].company||'A contact'} is on your list for tomorrow — get ahead of it.`
+      : `Worth glancing at tonight so tomorrow's smooth.`;
+    filterTarget='followup';
+  }
+
+  el.innerHTML=`
+    <div class="rn-icon">🔔</div>
+    <div class="rn-body">
+      <div class="rn-title">${title}</div>
+      <div class="rn-sub">${sub}</div>
+      <div class="rn-actions">
+        <button class="rn-btn primary" onclick="reminderGoTo('${filterTarget}')">Review now</button>
+        <button class="rn-btn ghost" onclick="dismissReminder()">Not now</button>
+      </div>
+    </div>
+    <div class="rn-close" onclick="dismissReminder()">✕</div>
+  `;
+  // Small delay so it slides in after the view has settled, not jarringly on load
+  setTimeout(()=>el.classList.add('show'),900);
+}
+
+function dismissReminder(){
+  const el=document.getElementById('reminderNudge');
+  el.classList.add('leaving');
+  setTimeout(()=>{el.classList.remove('show','leaving');el.innerHTML='';},350);
+}
+
+function reminderGoTo(filterTarget){
+  dismissReminder();
+  showTab('log');
+  setTimeout(()=>{
+    const btn=document.querySelector(`.ct[onclick*="'${filterTarget}'"]`);
+    if(btn) btn.click();
+  },100);
+}
+
 function setupVoice(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){document.getElementById('mic').style.display='none';return;}
   recog=new SR();recog.continuous=false;recog.interimResults=true;recog.lang='en-US';
-  recog.onstart=()=>{recording=true;document.getElementById('mic').classList.add('rec');toast('Listening…');};
+  recog.onstart=()=>{recording=true;voiceSendQueued=false;document.getElementById('mic').classList.add('rec');toast('Listening…');};
   recog.onresult=e=>{const t=Array.from(e.results).map(r=>r[0].transcript).join('');const inp=document.getElementById('txa');inp.value=t;onInp(inp);};
-  recog.onend=()=>{recording=false;document.getElementById('mic').classList.remove('rec');const inp=document.getElementById('txa');if(inp.value.trim())setTimeout(()=>send(),400);};
+  recog.onend=()=>{
+    recording=false;
+    document.getElementById('mic').classList.remove('rec');
+    const inp=document.getElementById('txa');
+    // Guard: the start()/retry path below can cause onend to fire more than once
+    // for what the user experiences as a single voice note - only ever queue one send.
+    if(inp.value.trim() && !voiceSendQueued){
+      voiceSendQueued=true;
+      setTimeout(()=>{ send(); voiceSendQueued=false; },400);
+    }
+  };
   recog.onerror=e=>{recording=false;document.getElementById('mic').classList.remove('rec');if(e.error==='not-allowed')toast('Mic access denied — check Settings');};
 }
-function toggleVoice(){if(!recog){toast('Voice not supported');return;}if(recording){recog.stop();}else{try{recog.start();}catch(e){recog.stop();setTimeout(()=>{try{recog.start();}catch(e2){}},300);}}}
+function toggleVoice(){
+  if(!recog){toast('Voice not supported');return;}
+  if(recording){recog.stop();}
+  else{
+    try{recog.start();}
+    catch(e){
+      // recog was already running/finishing - stop it cleanly and let onend fire naturally,
+      // do NOT immediately retry start() here, that's what caused duplicate sessions/sends.
+      try{recog.stop();}catch(e2){}
+    }
+  }
+}
 
 async function reqNotif(){
   if(!('Notification' in window)){toast('Notifications not supported');return;}
@@ -551,28 +686,37 @@ async function doAuth(){
     session=d.session;localStorage.setItem('zydi_sess',JSON.stringify(d.session));go('auth','off');await enterApp(d.user,d.profile);
   }catch(e){err.textContent='Connection error. Try again.';btn.disabled=false;btn.textContent=authM==='login'?'Sign In':'Request Access';}
 }
-async function enterApp(user,prof){
+async function enterApp(user,prof,isReturning){
   go('pend','off');go('app','');
   document.getElementById('uav').textContent=(user.email||'').charAt(0).toUpperCase();
   document.getElementById('menu-em').textContent=user.email;
   if(prof?.is_admin===true){document.getElementById('adm').style.display='inline-block';document.getElementById('adm-link').style.display='flex';}
-  // Welcome message
-  const hr=new Date().getHours();
-  const greet=hr<12?'Good morning':hr<17?'Good afternoon':'Good evening';
-  const nm=prof?.full_name||'';const firstName=nm.split(' ')[0];
-  const isFirst=!localStorage.getItem('zydi_named_'+user.id);
-  document.getElementById('chat').innerHTML='';
+
+  if(isReturning){
+    // Reopening an already-valid session: don't wipe the chat or show the welcome
+    // message again - just restore whichever tab they were last on and refresh data.
+    let lastTab='chat';
+    try{ lastTab=localStorage.getItem('zydi_last_tab')||'chat'; }catch(e){}
+    showTab(lastTab);
+  } else {
+    // Welcome message
+    const hr=new Date().getHours();
+    const greet=hr<12?'Good morning':hr<17?'Good afternoon':'Good evening';
+    const nm=prof?.full_name||'';const firstName=nm.split(' ')[0];
+    const isFirst=!localStorage.getItem('zydi_named_'+user.id);
+    document.getElementById('chat').innerHTML='';
+    if(isFirst&&!firstName){
+      addMsg('ai',`${greet}! Welcome to <strong style="color:var(--acc)">Zydi Flow</strong>. 👋<br><br>Before we start — what should I call you?`);
+      localStorage.setItem('zydi_awaiting_name_'+user.id,'1');
+    } else {
+      localStorage.setItem('zydi_named_'+user.id,'1');
+      addMsg('ai',`${greet}${firstName?', <strong>'+firstName+'</strong>':''}. Let\'s build your pipeline.<br><br>After every call, just tell me what happened — I\'ll log the lead, score it, set your follow-up, and tell you exactly what to do next.<br><br><span style="color:var(--t3);font-size:13px;">Try: <em style="color:var(--acc);">"Spoke to Sarah at Marriott, she loved the pitch, sending proposal Monday"</em></span>`);
+    }
+  }
   // Keep stats as dashes until data loads
   document.getElementById('sc').textContent='–';
   document.getElementById('sh').textContent='–';
   document.getElementById('sf').textContent='–';
-  if(isFirst&&!firstName){
-    addMsg('ai',`${greet}! Welcome to <strong style="color:var(--acc)">Zydi Flow</strong>. 👋<br><br>Before we start — what should I call you?`);
-    localStorage.setItem('zydi_awaiting_name_'+user.id,'1');
-  } else {
-    localStorage.setItem('zydi_named_'+user.id,'1');
-    addMsg('ai',`${greet}${firstName?', <strong>'+firstName+'</strong>':''}. Let\'s build your pipeline.<br><br>After every call, just tell me what happened — I\'ll log the lead, score it, set your follow-up, and tell you exactly what to do next.<br><br><span style="color:var(--t3);font-size:13px;">Try: <em style="color:var(--acc);">"Spoke to Sarah at Marriott, she loved the pitch, sending proposal Monday"</em></span>`);
-  }
   await loadCalls();
   if(Notification.permission==='granted')document.getElementById('notif-st').textContent='Enabled ✓';
   // Auto-refresh session every 45 min
@@ -625,6 +769,7 @@ function updateStats(){
   document.getElementById('sh').textContent=calls.filter(c=>c.temp==='hot').length;
   const today=new Date().toISOString().split('T')[0];
   document.getElementById('sf').textContent=calls.filter(c=>c.followup_date&&c.followup_date>=today).length;
+  checkReminderNudge();
   // Update category counts
   const cats={all:calls.length,followup:0,hot:0,meeting:0,interested:0,notinterested:0,noanswer:0};
   const t=new Date().toISOString().split('T')[0];
@@ -645,6 +790,7 @@ function showTab(t){
   document.getElementById(`p-${t}`).classList.add('on');
   document.getElementById(`t-${t}`).classList.add('on');
   if(t==='log')renderLog();if(t==='rep')renderRep();
+  try{ localStorage.setItem('zydi_last_tab', t); }catch(e){}
 }
 
 // CALLS - categorised
