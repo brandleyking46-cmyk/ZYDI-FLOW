@@ -39,7 +39,7 @@ module.exports = async (req, res) => {
 
     // Compact summaries — only the fields the model needs to match/update/recommend.
     // Full records are still fetched fresh from the DB for list/pdf responses below.
-    const slim = c => ({ id: c.id, company: c.company, contact: c.contact, status: c.status, temp: c.temp, followupDate: c.followup_date });
+    const slim = c => ({ id: c.id, company: c.company, contact: c.contact, status: c.status, temp: c.temp, followupDate: c.followup_date, loggedDate: c.date || (c.created_at ? c.created_at.split('T')[0] : null) });
     const callsSummary = calls.slice(0, 50).map(slim);
     const upcomingSummary = upcoming.map(slim);
     const overdueSummary = overdue.map(slim);
@@ -54,7 +54,9 @@ CRITICAL - Always respond with ONLY a valid JSON object. No markdown, no backtic
 
 DUPLICATE PREVENTION: When user gives an UPDATE about existing company/contact, use "update" type with the existing record ID. Only use "log" for genuinely new calls.
 
-Pipeline data (summarised — company/contact/status/temp/followup only):
+Pipeline data (summarised — company/contact/status/temp/followup/loggedDate only):
+Each call includes "loggedDate" (YYYY-MM-DD) showing when it was logged - use this to answer
+questions about activity over time ("calls this week", "how many yesterday", "calls in June").
 All calls (${calls.length} total): ${JSON.stringify(callsSummary)}
 Upcoming follow-ups: ${JSON.stringify(upcomingSummary)}
 Overdue follow-ups: ${JSON.stringify(overdueSummary)}
