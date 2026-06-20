@@ -75,6 +75,12 @@ PDF: {"type":"pdf","filter":"all","message":"Opening..."}
 
 Chat: {"type":"chat","message":"response"}
 
+CRITICAL - DO NOT include call/prospect arrays or record data in your JSON response.
+For "list" and "pdf" types, ONLY include "type", "filter", and "message" - nothing else.
+The actual records are fetched and attached separately after your response. If you add
+extra fields like "pipeline", "calls", or "data" containing record arrays, the response
+can exceed length limits and break. Keep "message" itself short - one or two sentences.
+
 Rules:
 - "loved it/interested/sounds good" = warm
 - "excited/ready/let's go/sign" = hot  
@@ -123,6 +129,11 @@ Rules:
 
     // Fetch for list/pdf
     if (parsed.type === 'list' || parsed.type === 'pdf') {
+      // Safety net: strip any record-array fields the model may have invented
+      // (e.g. "pipeline", "calls", "data") despite the prompt instruction not to.
+      // The real records always come from the DB query below, never from the model.
+      ['pipeline', 'calls', 'data', 'records'].forEach(k => { delete parsed[k]; });
+
       let q = svc.from('calls').select('*').order('created_at', { ascending: false });
       if (!isAdmin) q = q.eq('user_id', user.id);
       const f = parsed.filter;
