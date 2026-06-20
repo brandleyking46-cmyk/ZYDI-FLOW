@@ -188,6 +188,11 @@ body{font-family:var(--font);color:var(--t);display:flex;flex-direction:column;}
 .rfb{white-space:nowrap;padding:6px 12px;border-radius:8px;border:1px solid var(--bd);background:transparent;color:var(--t3);font-family:var(--font);font-size:11px;cursor:pointer;font-weight:500;transition:all .2s;}
 .rfb.on{background:var(--acc-dim);border-color:rgba(0,212,255,.3);color:var(--acc);}
 .rfb-label{font-size:9px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;}
+.rep-stats-wrap{background:var(--s1);border-bottom:1px solid var(--bd);padding:10px 14px;flex-shrink:0;}
+.rep-stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.rs-card{background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:10px 8px;text-align:center;}
+.rs-n{font-family:var(--display);font-weight:800;font-size:20px;color:var(--t);line-height:1.1;}
+.rs-l{font-size:9px;color:var(--t3);margin-top:3px;text-transform:uppercase;letter-spacing:0.04em;font-family:var(--mono);}
 .rep-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 14px 90px;}
 .rep-scroll::-webkit-scrollbar{display:none;}
 .rep-meta-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
@@ -382,6 +387,10 @@ body{font-family:var(--font);color:var(--t);display:flex;flex-direction:column;}
     <!-- REPORT -->
     <div class="panel" id="p-rep">
       <div class="rep-panel">
+        <div class="rep-stats-wrap">
+          <div class="rfb-label">Activity</div>
+          <div class="rep-stats-grid" id="rep-stats-grid"></div>
+        </div>
         <div class="rep-filters-wrap">
           <div class="rfb-label">Time period</div>
           <div class="rep-filter-row" id="period-filters">
@@ -390,6 +399,7 @@ body{font-family:var(--font);color:var(--t);display:flex;flex-direction:column;}
             <button class="rfb" onclick="setPeriodF('week',this)">This Week</button>
             <button class="rfb" onclick="setPeriodF('month',this)">This Month</button>
             <button class="rfb" onclick="setPeriodF('lastmonth',this)">Last Month</button>
+            <button class="rfb" onclick="setPeriodF('year',this)">This Year</button>
           </div>
           <div class="rfb-label" style="margin-top:8px;">Filter by</div>
           <div class="rep-filter-row" id="status-filters">
@@ -800,6 +810,21 @@ function updateStats(){
   Object.keys(cats).forEach(k=>{const el=document.getElementById(`cnt-${k}`);if(el)el.textContent=cats[k];});
 }
 
+function goToFullReport(){
+  // "Full Report" should always mean the complete, unfiltered list - reset both
+  // the underlying state and the visible filter buttons so a previously-narrowed
+  // filter (e.g. left on "Today" or "Hot" from an earlier visit) can't make this
+  // look empty even though real data exists.
+  repPeriod='all';repStatus='all';
+  document.querySelectorAll('#period-filters .rfb').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('#status-filters .rfb').forEach(b=>b.classList.remove('on'));
+  const allPeriodBtn=document.querySelector('#period-filters .rfb[onclick*="\'all\'"]');
+  const allStatusBtn=document.querySelector('#status-filters .rfb[onclick*="\'all\'"]');
+  if(allPeriodBtn) allPeriodBtn.classList.add('on');
+  if(allStatusBtn) allStatusBtn.classList.add('on');
+  showTab('rep');
+}
+
 function showTab(t){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
@@ -874,6 +899,7 @@ function getRepPool(){
     const ms=today.substring(0,7)+'-01';
     pool=pool.filter(c=>c.date&&c.date>=lms&&c.date<ms);
   }
+  else if(repPeriod==='year'){const ys=today.substring(0,4)+'-01-01';pool=pool.filter(c=>c.date&&c.date>=ys);}
 
   // Status filter
   if(repStatus==='hot') pool=pool.filter(c=>c.temp==='hot');
@@ -886,7 +912,31 @@ function getRepPool(){
   return pool;
 }
 
+function renderActivityStats(){
+  const now=new Date();
+  const today=now.toISOString().split('T')[0];
+  const weekAgo=new Date(now);weekAgo.setDate(weekAgo.getDate()-7);
+  const weekStart=weekAgo.toISOString().split('T')[0];
+  const monthStart=today.substring(0,7)+'-01';
+  const yearStart=today.substring(0,4)+'-01-01';
+
+  // Always computed from the full calls dataset, independent of the active
+  // period/status filters below - this is the at-a-glance source of truth.
+  const todayCount=calls.filter(c=>c.date===today).length;
+  const weekCount=calls.filter(c=>c.date&&c.date>=weekStart).length;
+  const monthCount=calls.filter(c=>c.date&&c.date>=monthStart).length;
+  const yearCount=calls.filter(c=>c.date&&c.date>=yearStart).length;
+
+  document.getElementById('rep-stats-grid').innerHTML=`
+    <div class="rs-card"><div class="rs-n">${todayCount}</div><div class="rs-l">Today</div></div>
+    <div class="rs-card"><div class="rs-n">${weekCount}</div><div class="rs-l">This Week</div></div>
+    <div class="rs-card"><div class="rs-n">${monthCount}</div><div class="rs-l">This Month</div></div>
+    <div class="rs-card"><div class="rs-n">${yearCount}</div><div class="rs-l">This Year</div></div>
+  `;
+}
+
 function renderRep(){
+  renderActivityStats();
   const pool=getRepPool();
   const dt=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
   document.getElementById('rep-meta').textContent=`${pool.length} prospect${pool.length!==1?'s':''} · ${dt}`;
@@ -910,7 +960,7 @@ function renderRep(){
 function doPrint(){
   const pool=getRepPool();if(!pool.length){toast('No prospects to print');return;}
   const dt=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
-  const periodLabels={all:'All Time',today:'Today',week:'This Week',month:'This Month',lastmonth:'Last Month'};
+  const periodLabels={all:'All Time',today:'Today',week:'This Week',month:'This Month',lastmonth:'Last Month',year:'This Year'};
   const statusLabels={all:'All',hot:'Hot',warm:'Warm & Hot',meeting:'Meetings',followup:'Follow-ups',interested:'Interested',notinterested:'Not Interested'};
   const lbl=`${periodLabels[repPeriod]||'All'} · ${statusLabels[repStatus]||'All'}`;
   const nm=profile?.full_name||'Sales Rep';
@@ -1020,7 +1070,7 @@ function handleResp(p){
     addMsg('ai',esc(message||'Updated!'));
   }else if(type==='list'){
     const pool=prospects||[];if(!pool.length){addMsg('ai',esc(message||'No prospects found.'));return;}
-    let h=esc(message||'')+`<div class="pros-list"><div class="pros-h"><span class="pros-ht">${pool.length} Prospect${pool.length!==1?'s':''}</span><button class="rep-lnk" onclick="showTab('rep')">Full Report</button></div>
+    let h=esc(message||'')+`<div class="pros-list"><div class="pros-h"><span class="pros-ht">${pool.length} Prospect${pool.length!==1?'s':''}</span><button class="rep-lnk" onclick="goToFullReport()">Full Report</button></div>
       ${pool.slice(0,10).map(c=>`<div class="pros-r"><div class="pros-n">${esc(c.company||'Unknown')}</div><div class="pros-d">${esc(c.contact||'')}${c.industry?' · '+esc(c.industry):''}</div><div class="pros-tags"><span class="tag t-${c.temp||'cold'}">${c.temp||'cold'}</span><span class="tag t-${c.status||'called'}" style="margin-left:4px;">${sl(c.status)}</span>${c.followup_date?`<span class="tag t-followup" style="margin-left:4px;">🔔 ${c.followup_date}</span>`:''}</div></div>`).join('')}
       ${pool.length>10?`<div style="padding:8px 12px;font-size:11px;color:var(--t3);font-family:var(--mono);">+ ${pool.length-10} more in Report tab</div>`:''}
     </div>`;
