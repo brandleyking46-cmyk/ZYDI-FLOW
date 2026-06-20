@@ -616,6 +616,8 @@ function reminderGoTo(filterTarget){
   },100);
 }
 
+let voiceSendQueued=false;
+let _lastVoiceSend={text:'',at:0};
 function setupVoice(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){document.getElementById('mic').style.display='none';return;}
@@ -626,11 +628,25 @@ function setupVoice(){
     recording=false;
     document.getElementById('mic').classList.remove('rec');
     const inp=document.getElementById('txa');
-    // Guard: the start()/retry path below can cause onend to fire more than once
-    // for what the user experiences as a single voice note - only ever queue one send.
-    if(inp.value.trim() && !voiceSendQueued){
+    const text=inp.value.trim();
+    // Guard against duplicate sends from a single voice note. Two known causes:
+    // 1) onend firing more than once for the same recognition session (voiceSendQueued)
+    // 2) iOS Safari's webkitSpeechRecognition can auto-fire a second, genuinely separate
+    //    end-of-speech cycle for what the user experiences as one continuous voice note -
+    //    caught here by comparing against the last transcript actually sent, within a
+    //    short cooldown window, since that second cycle happens far enough apart that
+    //    voiceSendQueued alone has already reset.
+    const now=Date.now();
+    const isDuplicateOfLastSend = text && text===_lastVoiceSend.text && (now-_lastVoiceSend.at)<6000;
+    if(text && !voiceSendQueued && !isDuplicateOfLastSend){
       voiceSendQueued=true;
-      setTimeout(()=>{ send(); voiceSendQueued=false; },400);
+      setTimeout(()=>{
+        _lastVoiceSend={text,at:Date.now()};
+        send();
+        voiceSendQueued=false;
+      },400);
+    } else if(isDuplicateOfLastSend){
+      inp.value=''; // clear so a stray duplicate cycle doesn't leave stale text sitting in the box
     }
   };
   recog.onerror=e=>{recording=false;document.getElementById('mic').classList.remove('rec');if(e.error==='not-allowed')toast('Mic access denied — check Settings');};
