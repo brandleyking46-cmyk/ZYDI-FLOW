@@ -810,11 +810,7 @@ function updateStats(){
   Object.keys(cats).forEach(k=>{const el=document.getElementById(`cnt-${k}`);if(el)el.textContent=cats[k];});
 }
 
-function goToFullReport(){
-  // "Full Report" should always mean the complete, unfiltered list - reset both
-  // the underlying state and the visible filter buttons so a previously-narrowed
-  // filter (e.g. left on "Today" or "Hot" from an earlier visit) can't make this
-  // look empty even though real data exists.
+function goToFullReport(autoPrint){
   repPeriod='all';repStatus='all';
   document.querySelectorAll('#period-filters .rfb').forEach(b=>b.classList.remove('on'));
   document.querySelectorAll('#status-filters .rfb').forEach(b=>b.classList.remove('on'));
@@ -823,6 +819,16 @@ function goToFullReport(){
   if(allPeriodBtn) allPeriodBtn.classList.add('on');
   if(allStatusBtn) allStatusBtn.classList.add('on');
   showTab('rep');
+  // If calls haven't loaded yet, wait until loadCalls completes before printing
+  if(autoPrint){
+    if(calls.length){ setTimeout(()=>doPrint(),400); }
+    else{
+      const wait=setInterval(()=>{
+        if(calls.length){ clearInterval(wait); setTimeout(()=>doPrint(),400); }
+      },200);
+      setTimeout(()=>clearInterval(wait),8000); // safety timeout
+    }
+  }
 }
 
 function showTab(t){
@@ -913,6 +919,16 @@ function getRepPool(){
 }
 
 function renderActivityStats(){
+  const grid=document.getElementById('rep-stats-grid');
+  if(!calls.length){
+    grid.innerHTML=`
+      <div class="rs-card"><div class="rs-n" style="color:var(--t3)">–</div><div class="rs-l">Today</div></div>
+      <div class="rs-card"><div class="rs-n" style="color:var(--t3)">–</div><div class="rs-l">This Week</div></div>
+      <div class="rs-card"><div class="rs-n" style="color:var(--t3)">–</div><div class="rs-l">This Month</div></div>
+      <div class="rs-card"><div class="rs-n" style="color:var(--t3)">–</div><div class="rs-l">This Year</div></div>
+    `;
+    return;
+  }
   const now=new Date();
   const today=now.toISOString().split('T')[0];
   const weekAgo=new Date(now);weekAgo.setDate(weekAgo.getDate()-7);
@@ -920,14 +936,12 @@ function renderActivityStats(){
   const monthStart=today.substring(0,7)+'-01';
   const yearStart=today.substring(0,4)+'-01-01';
 
-  // Always computed from the full calls dataset, independent of the active
-  // period/status filters below - this is the at-a-glance source of truth.
   const todayCount=calls.filter(c=>c.date===today).length;
   const weekCount=calls.filter(c=>c.date&&c.date>=weekStart).length;
   const monthCount=calls.filter(c=>c.date&&c.date>=monthStart).length;
   const yearCount=calls.filter(c=>c.date&&c.date>=yearStart).length;
 
-  document.getElementById('rep-stats-grid').innerHTML=`
+  grid.innerHTML=`
     <div class="rs-card"><div class="rs-n">${todayCount}</div><div class="rs-l">Today</div></div>
     <div class="rs-card"><div class="rs-n">${weekCount}</div><div class="rs-l">This Week</div></div>
     <div class="rs-card"><div class="rs-n">${monthCount}</div><div class="rs-l">This Month</div></div>
@@ -937,10 +951,16 @@ function renderActivityStats(){
 
 function renderRep(){
   renderActivityStats();
+  const el=document.getElementById('rep-list');
+  // If calls haven't loaded yet, show loading state rather than a misleading "0 prospects"
+  if(!calls.length){
+    document.getElementById('rep-meta').textContent='Loading…';
+    el.innerHTML='<div class="empty" style="color:var(--t3)">Loading your pipeline…</div>';
+    return;
+  }
   const pool=getRepPool();
   const dt=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
   document.getElementById('rep-meta').textContent=`${pool.length} prospect${pool.length!==1?'s':''} · ${dt}`;
-  const el=document.getElementById('rep-list');
   if(!pool.length){el.innerHTML='<div class="empty">No prospects match these filters.</div>';return;}
   const today=new Date().toISOString().split('T')[0];
   el.innerHTML=pool.map(c=>`
@@ -1079,7 +1099,7 @@ function handleResp(p){
     let h=esc(message||'')+`<div class="rlist">`;
     (items||[]).forEach(it=>{h+=`<div class="ri"><span class="ri-b ri-${it.priority||'medium'}">${it.priority==='high'?'⚡ High':it.priority==='low'?'Low':'Medium'} Priority</span>${it.prospect?`<div class="ri-co">${esc(it.prospect)}</div>`:''}<div class="ri-tx">${esc(it.text||'')}</div></div>`;});
     h+='</div>';addMsg('ai',h,true);
-  }else if(type==='pdf'){addMsg('ai',esc(message||'Opening report…'));setTimeout(()=>showTab('rep'),300);}
+  }else if(type==='pdf'){addMsg('ai',esc(message||'Opening report…'));setTimeout(()=>goToFullReport(true),300);}
   else{addMsg('ai',esc(message||'').replace(/\n/g,'<br>'),true);}
 }
 
